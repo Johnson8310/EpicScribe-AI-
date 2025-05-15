@@ -25,10 +25,33 @@ export default function DashboardPage() {
     setIsClient(true);
     setBooks(getInitialBooks());
   }, []);
+
+  // Re-fetch books if localStorage changes (e.g., new book created or book deleted from My Books page)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setBooks(getInitialBooks());
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+      // Listen for custom event when a book is created/deleted elsewhere
+      const handleBookListUpdate = () => setBooks(getInitialBooks());
+      window.addEventListener('bookListUpdated', handleBookListUpdate);
+
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('bookListUpdated', handleBookListUpdate);
+      };
+    }
+  }, []);
   
   const handleBookGenerated = (newBook: Book) => {
     // Add to local state, will also be in localStorage from BookGenerationForm
     setBooks(prevBooks => [newBook, ...prevBooks].sort((a,b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()));
+    // Dispatch a custom event so other components (like MyBooksPage) can update
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('bookListUpdated'));
+    }
   };
 
   const handleDeleteBook = (bookId: string) => {
@@ -40,6 +63,8 @@ export default function DashboardPage() {
         title: "Book Deleted",
         description: `"${bookToDelete?.title || 'The book'}" has been successfully removed.`,
       });
+      // Dispatch a custom event so other components (like MyBooksPage) can update
+      window.dispatchEvent(new CustomEvent('bookListUpdated'));
     }
   };
 
