@@ -74,6 +74,18 @@ export default function BookEditorPage() {
         });
     }, 700);
   };
+
+  const handleChapterRewrite = (rewrittenContent: string) => {
+    setEditedContent(rewrittenContent);
+    // User can review and then manually save.
+    // Optionally, you could auto-save here by calling handleSaveChanges(),
+    // but for now, we'll let them review first.
+    toast({
+      title: "Editor Updated",
+      description: "Chapter content in the editor has been updated. Review and save your changes.",
+      variant: "default"
+    });
+  };
   
   const currentChapter = book?.chapters.find(c => c.id === currentChapterId);
 
@@ -109,7 +121,7 @@ export default function BookEditorPage() {
                 Editing: {book.title}
             </h1>
         </div>
-        <EditorActions currentChapter={currentChapter} />
+        <EditorActions currentChapter={currentChapter} onChapterRewrite={handleChapterRewrite} />
       </header>
 
       <div className="flex-1 grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 overflow-hidden">
