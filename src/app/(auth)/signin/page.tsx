@@ -42,6 +42,9 @@ export default function SignInPage() {
         title: 'Signed In',
         description: state.message,
       });
+      if (state.email && typeof window !== 'undefined') {
+        localStorage.setItem('userEmail', state.email);
+      }
       router.push('/'); 
     } else if (state.message && !state.success && Object.keys(state.errors || {}).length === 0 && state.message !== '') {
       // General error message from action (not field specific)

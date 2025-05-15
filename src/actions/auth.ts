@@ -28,6 +28,7 @@ export interface SignInState {
     general?: string[];
   };
   success: boolean;
+  email?: string; // Added to carry email on success
 }
 
 export interface SignUpState {
@@ -60,17 +61,17 @@ export async function signInAction(prevState: SignInState, formData: FormData): 
   // For now, we'll simulate a successful sign-in for a known user or fail
   if (email === 'user@example.com' && password === 'password123') {
     console.log('Sign-in successful (placeholder)');
-    // In a real app, you'd set a session cookie or token here
     return {
       message: 'Successfully signed in. Redirecting to your dashboard...',
       errors: {},
       success: true,
+      email: email, // Return email on success
     };
   } else {
     console.log('Sign-in failed: Invalid credentials (placeholder)');
     return {
       message: 'Invalid email or password.',
-      errors: {}, // No specific field errors for a general auth failure
+      errors: {}, 
       success: false,
     };
   }
@@ -102,4 +103,3 @@ export async function signUpAction(prevState: SignUpState, formData: FormData): 
     success: true,
   };
 }
-

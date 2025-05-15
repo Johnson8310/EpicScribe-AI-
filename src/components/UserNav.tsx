@@ -1,3 +1,9 @@
+
+"use client"; // Add "use client" for hooks and localStorage
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,18 +15,48 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserCircle, Settings, LogOut, LifeBuoy } from "lucide-react";
+import { UserCircle, Settings, LogOut, LifeBuoy, LogInIcon } from "lucide-react";
 
 export default function UserNav() {
-  // Placeholder user data
-  const user = { name: "AI Author", email: "author@epicscribe.ai" };
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    // Ensure localStorage is accessed only on the client side
+    if (typeof window !== 'undefined') {
+      const storedEmail = localStorage.getItem('userEmail');
+      setCurrentUserEmail(storedEmail);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userEmail');
+    }
+    setCurrentUserEmail(null);
+    router.push('/signin');
+  };
+
+  // Placeholder user name, can be derived or fetched later
+  const userName = currentUserEmail ? currentUserEmail.split('@')[0] : "User";
+
+  if (!currentUserEmail) {
+    return (
+      <Link href="/signin" passHref>
+        <Button variant="outline" size="sm">
+          <LogInIcon className="mr-2 h-4 w-4" />
+          Sign In
+        </Button>
+      </Link>
+    );
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-9 w-9 rounded-full">
           <Avatar className="h-9 w-9 border border-border">
-            <AvatarImage src={`https://avatar.vercel.sh/${user.email}.png?s=36`} alt={user.name} />
+            <AvatarImage src={`https://avatar.vercel.sh/${currentUserEmail}.png?s=36`} alt={userName} />
             <AvatarFallback>
               <UserCircle className="h-5 w-5" />
             </AvatarFallback>
@@ -30,9 +66,9 @@ export default function UserNav() {
       <DropdownMenuContent className="w-60" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1 py-1">
-            <p className="text-sm font-medium leading-none">{user.name}</p>
+            <p className="text-sm font-medium leading-none">{userName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {currentUserEmail}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -52,7 +88,7 @@ export default function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>
