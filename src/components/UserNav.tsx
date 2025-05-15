@@ -15,74 +15,93 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserCircle, Settings, LogOut, LifeBuoy, LogInIcon, UserCog } from "lucide-react"; // Added UserCog for profile
+import { UserCircle, Settings, LogOut, LifeBuoy, LogInIcon, UserCog } from "lucide-react";
+import { auth } from '@/lib/firebase'; // Import Firebase auth instance
+import { onAuthStateChanged, signOut, type User } from 'firebase/auth'; // Import Firebase auth functions
 
 export default function UserNav() {
-  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>("User");
+  const [isLoading, setIsLoading] = useState(true); // To handle initial auth state loading
   const router = useRouter();
 
   useEffect(() => {
-    // Ensure localStorage is accessed only on the client side
-    if (typeof window !== 'undefined') {
-      const storedEmail = localStorage.getItem('userEmail');
-      setCurrentUserEmail(storedEmail);
-
-      if (storedEmail) {
-        const storedDisplayName = localStorage.getItem('userName');
-        setCurrentUserName(storedDisplayName || storedEmail.split('@')[0]);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setIsLoading(false);
+      if (user && typeof window !== 'undefined') {
+        const storedDisplayName = localStorage.getItem(`userName-${user.uid}`);
+        setCurrentUserName(storedDisplayName || user.email?.split('@')[0] || "User");
+      } else {
+        setCurrentUserName("User");
       }
-    }
-  }, []); // Re-run if router changes, e.g. after navigation
+    });
+
+    // Clean up subscription on unmount
+    return () => unsubscribe();
+  }, []);
 
   // This effect will update the display name if it changes on the profile page
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'userName' && currentUserEmail) {
-         setCurrentUserName(event.newValue || currentUserEmail.split('@')[0]);
+      if (currentUser && event.key === `userName-${currentUser.uid}`) {
+         setCurrentUserName(event.newValue || currentUser.email?.split('@')[0] || "User");
       }
-       if (event.key === 'userEmail') {
-        const newEmail = event.newValue;
-        setCurrentUserEmail(newEmail);
-        if (!newEmail) { // If email is removed (logout)
-          setCurrentUserName("User"); // Reset user name
-        } else if (!localStorage.getItem('userName')) { // If email is set but no username (new login without display name yet)
-           setCurrentUserName(newEmail.split('@')[0]);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+      };
+    }
+  }, [currentUser]);
+
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      if (typeof window !== 'undefined') {
+        // Clear user-specific local storage if any (like display name)
+        if (currentUser) {
+            localStorage.removeItem(`userName-${currentUser.uid}`);
         }
       }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [currentUserEmail]);
-
-
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('userEmail');
-      localStorage.removeItem('userName'); // Also clear display name on logout
+      setCurrentUser(null); // State update will trigger re-render
+      setCurrentUserName("User");
+      router.push('/signin');
+    } catch (error) {
+      console.error("Error signing out: ", error);
+      // Optionally show a toast message for logout error
     }
-    setCurrentUserEmail(null);
-    setCurrentUserName("User"); // Reset display name
-    router.push('/signin');
   };
   
   const getAvatarFallback = () => {
     if (currentUserName && currentUserName !== "User" && currentUserName.length > 0) {
         return currentUserName.charAt(0).toUpperCase();
     }
-    if (currentUserEmail) {
-        return currentUserEmail.charAt(0).toUpperCase();
+    if (currentUser?.email) {
+        return currentUser.email.charAt(0).toUpperCase();
     }
     return <UserCircle className="h-5 w-5" />;
   }
 
-
-  if (!currentUserEmail) {
+  if (isLoading) {
+    // You can return a loading spinner or a placeholder here
     return (
-      <Link href="/signin" passHref>
+        <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+            <Avatar className="h-9 w-9 border border-border">
+                <AvatarFallback>
+                    <UserCircle className="h-5 w-5 animate-pulse" />
+                </AvatarFallback>
+            </Avatar>
+        </Button>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <Link href="/signin" passHref legacyBehavior>
         <Button variant="outline" size="sm">
           <LogInIcon className="mr-2 h-4 w-4" />
           Sign In
@@ -96,7 +115,8 @@ export default function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-9 w-9 rounded-full">
           <Avatar className="h-9 w-9 border border-border">
-            <AvatarImage src={`https://avatar.vercel.sh/${currentUserEmail}.png?s=36`} alt={currentUserName} />
+            {/* Consider a more robust avatar image source if available from Firebase user profile */}
+            <AvatarImage src={`https://avatar.vercel.sh/${currentUser.email || currentUser.uid}.png?s=36`} alt={currentUserName} />
             <AvatarFallback>
               {getAvatarFallback()}
             </AvatarFallback>
@@ -108,7 +128,7 @@ export default function UserNav() {
           <div className="flex flex-col space-y-1 py-1">
             <p className="text-sm font-medium leading-none">{currentUserName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {currentUserEmail}
+              {currentUser.email}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -116,7 +136,7 @@ export default function UserNav() {
         <DropdownMenuGroup>
           <Link href="/profile" passHref legacyBehavior>
             <DropdownMenuItem asChild>
-              <a> {/* Anchor tag for proper styling and click handling within DropdownMenuItem */}
+              <a>
                 <UserCog className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </a>
@@ -140,4 +160,3 @@ export default function UserNav() {
     </DropdownMenu>
   );
 }
-

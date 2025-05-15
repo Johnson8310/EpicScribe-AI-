@@ -8,54 +8,67 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { UserCog, Mail, User, Save } from 'lucide-react';
-import AppLogo from '@/components/AppLogo'; // Optional: if you want the logo here too
+import { UserCog, Mail, User as UserIcon, Save, Loader2 } from 'lucide-react'; // Renamed User to UserIcon
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 
 export default function ProfilePage() {
-  const [email, setEmail] = useState<string | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [displayName, setDisplayName] = useState<string>('');
   const [initialDisplayName, setInitialDisplayName] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedEmail = localStorage.getItem('userEmail');
-      if (!storedEmail) {
-        router.push('/signin');
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setFirebaseUser(user);
+        const storedDisplayName = localStorage.getItem(`userName-${user.uid}`);
+        const nameToSet = storedDisplayName || user.email?.split('@')[0] || '';
+        setDisplayName(nameToSet);
+        setInitialDisplayName(nameToSet);
       } else {
-        setEmail(storedEmail);
-        const storedDisplayName = localStorage.getItem('userName');
-        if (storedDisplayName) {
-          setDisplayName(storedDisplayName);
-          setInitialDisplayName(storedDisplayName);
-        } else {
-          // Default display name from email if not set
-          const nameFromEmail = storedEmail.split('@')[0];
-          setDisplayName(nameFromEmail);
-          setInitialDisplayName(nameFromEmail);
-        }
+        router.push('/signin?redirect=/profile'); // Redirect to signin if not authenticated
       }
-    }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, [router]);
 
   const handleSaveProfile = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('userName', displayName);
-      setInitialDisplayName(displayName); // Update initial state to prevent "unsaved changes" feel
+    if (firebaseUser && typeof window !== 'undefined') {
+      localStorage.setItem(`userName-${firebaseUser.uid}`, displayName);
+      setInitialDisplayName(displayName); 
       toast({
         title: 'Profile Updated',
         description: 'Your display name has been saved.',
       });
+       // Dispatch a storage event so UserNav can pick up the change
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: `userName-${firebaseUser.uid}`,
+        newValue: displayName,
+        oldValue: initialDisplayName, // Or the previous value from localStorage
+        storageArea: localStorage,
+      }));
     }
   };
 
-  if (!email) {
-    // Still loading or redirecting
+  if (isLoading) {
     return (
       <div className="flex min-h-[calc(100vh-var(--header-height,4rem))] items-center justify-center p-4">
-        <p>Loading profile...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2">Loading profile...</p>
       </div>
+    );
+  }
+
+  if (!firebaseUser) {
+    // Should be caught by isLoading or redirect, but as a fallback
+    return (
+         <div className="flex min-h-[calc(100vh-var(--header-height,4rem))] items-center justify-center p-4">
+            <p>Redirecting to sign in...</p>
+         </div>
     );
   }
 
@@ -63,7 +76,6 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-var(--header-height,4rem))] items-center justify-center bg-background p-4 space-y-8">
-      {/* <AppLogo /> Optional: if you want the logo here */}
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold tracking-tight flex items-center justify-center gap-2">
@@ -77,13 +89,13 @@ export default function ProfilePage() {
             <Label htmlFor="email">Email</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input id="email" type="email" value={email} readOnly disabled className="pl-10 bg-muted/50" />
+              <Input id="email" type="email" value={firebaseUser.email || ''} readOnly disabled className="pl-10 bg-muted/50" />
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="displayName">Display Name</Label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <UserIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="displayName"
                 name="displayName"

@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useActionState } from 'react'; // Changed from 'react-dom' and renamed
+import { useActionState } from 'react';
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signInAction, type SignInState } from '@/actions/auth';
@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Mail, Lock, LogIn } from 'lucide-react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 const initialState: SignInState = {
   message: '',
@@ -20,10 +22,22 @@ const initialState: SignInState = {
 };
 
 export default function SignInPage() {
-  const [state, formAction] = useActionState(signInAction, initialState); // Renamed from useFormState
+  const [state, formAction] = useActionState(signInAction, initialState);
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // If user is already signed in, redirect to dashboard
+        // This handles cases where user navigates to /signin while already logged in
+        const redirectPath = searchParams.get('redirect') || '/';
+        router.push(redirectPath);
+      }
+    });
+    return () => unsubscribe(); // Cleanup subscription
+  }, [router, searchParams]);
 
   useEffect(() => {
     if (searchParams.get('signup') === 'success') {
@@ -31,30 +45,31 @@ export default function SignInPage() {
         title: 'Account Created',
         description: 'Your account has been successfully created. Please sign in.',
       });
-      // Remove the query param after showing the toast so it doesn't reappear on refresh
       router.replace('/signin', { scroll: false });
     }
   }, [searchParams, toast, router]);
 
   useEffect(() => {
-    if (state.success) {
+    if (state.success && state.message) {
       toast({
         title: 'Signed In',
         description: state.message,
       });
-      if (state.email && typeof window !== 'undefined') {
-        localStorage.setItem('userEmail', state.email);
+      // Redirection is now primarily handled by onAuthStateChanged listener,
+      // but we can still push here as a fallback or for immediate navigation attempt.
+      const redirectPath = searchParams.get('redirect') || '/';
+      router.push(redirectPath);
+    } else if (!state.success && state.message) {
+      // Display general errors from action, field errors are handled below inputs
+      if (state.errors?.general || (Object.keys(state.errors || {}).length === 0 && state.message !== initialState.message)) {
+         toast({
+            title: 'Sign In Failed',
+            description: state.message,
+            variant: 'destructive',
+        });
       }
-      router.push('/'); 
-    } else if (state.message && !state.success && Object.keys(state.errors || {}).length === 0 && state.message !== '') {
-      // General error message from action (not field specific)
-      toast({
-        title: 'Sign In Failed',
-        description: state.message,
-        variant: 'destructive',
-      });
     }
-  }, [state, toast, router]);
+  }, [state, toast, router, searchParams]);
 
   return (
     <Card className="w-full max-w-md shadow-xl">
@@ -87,9 +102,8 @@ export default function SignInPage() {
           <Button type="submit" className="w-full">
             Sign In
           </Button>
-          {/* Display general errors from action that are not field-specific directly in the form as well */}
-          {state.message && !state.success && Object.keys(state.errors || {}).length === 0 && state.message !== '' && (
-             <p className="text-sm text-destructive text-center">{state.message}</p>
+          {state.errors?.general && (
+             <p className="text-sm text-destructive text-center">{state.errors.general.join(', ')}</p>
           )}
         </form>
       </CardContent>

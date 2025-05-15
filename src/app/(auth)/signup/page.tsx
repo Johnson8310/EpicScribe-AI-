@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useActionState } from 'react'; // Changed from 'react-dom' and renamed
+import { useActionState } from 'react';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signUpAction, type SignUpState } from '@/actions/auth';
@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { UserPlus, Mail, Lock } from 'lucide-react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 const initialState: SignUpState = {
   message: '',
@@ -20,23 +22,42 @@ const initialState: SignUpState = {
 };
 
 export default function SignUpPage() {
-  const [state, formAction] = useActionState(signUpAction, initialState); // Renamed from useFormState
+  const [state, formAction] = useActionState(signUpAction, initialState);
   const { toast } = useToast();
   const router = useRouter();
 
   useEffect(() => {
-    if (state.success) {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // If user is already signed in (e.g. after successful signup and auto-signin by Firebase),
+        // redirect to dashboard
+        router.push('/');
+      }
+    });
+    return () => unsubscribe(); // Cleanup subscription
+  }, [router]);
+
+
+  useEffect(() => {
+    if (state.success && state.message) {
       toast({
         title: 'Account Created',
-        description: state.message, // Message from server action
-      });
-      router.push('/signin?signup=success'); 
-    } else if (state.message && !state.success && Object.keys(state.errors || {}).length === 0 && state.message !== '') {
-      toast({
-        title: 'Sign Up Failed',
         description: state.message,
-        variant: 'destructive',
       });
+      // Firebase createUserWithEmailAndPassword signs the user in.
+      // The onAuthStateChanged listener above should handle redirect to '/'.
+      // If not, or as a fallback, we can push to signin.
+      // For now, we'll let onAuthStateChanged handle it, or direct to signin if immediate auth state change is not picked up.
+      router.push('/signin?signup=success'); 
+    } else if (!state.success && state.message) {
+      // Display general errors from action, field errors are handled below inputs
+      if (state.errors?.general || (Object.keys(state.errors || {}).length === 0 && state.message !== initialState.message)) {
+        toast({
+            title: 'Sign Up Failed',
+            description: state.message,
+            variant: 'destructive',
+        });
+      }
     }
   }, [state, toast, router]);
 
@@ -79,9 +100,8 @@ export default function SignUpPage() {
           <Button type="submit" className="w-full">
             Sign Up
           </Button>
-           {/* Display general errors from action that are not field-specific directly in the form as well */}
-           {state.message && !state.success && Object.keys(state.errors || {}).length === 0 && state.message !== '' && (
-             <p className="text-sm text-destructive text-center">{state.message}</p>
+           {state.errors?.general && (
+             <p className="text-sm text-destructive text-center">{state.errors.general.join(', ')}</p>
           )}
         </form>
       </CardContent>
@@ -96,4 +116,3 @@ export default function SignUpPage() {
     </Card>
   );
 }
-
