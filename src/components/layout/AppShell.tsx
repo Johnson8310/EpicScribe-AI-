@@ -1,3 +1,4 @@
+
 "use client";
 import type { ReactNode } from 'react';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarContent, SidebarTrigger, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
@@ -15,12 +16,24 @@ export default function AppShell({ children }: AppShellProps) {
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen w-full flex-col">
-        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6 shadow-sm">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger className="p-1.5" /> {/* Ensure trigger is always available */}
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center border-b bg-background px-4 sm:px-6 shadow-sm">
+          {/* Left section for SidebarTrigger */}
+          <div className="flex items-center">
+            <SidebarTrigger className="p-1.5 md:hidden" /> {/* Hidden on md and up if sidebar is static */}
+             <div className="hidden md:block"> {/* Placeholder for spacing, or keep trigger if sidebar is always collapsible */}
+               <SidebarTrigger className="p-1.5" />
+             </div>
+          </div>
+
+          {/* Center section for AppLogo */}
+          <div className="flex-1 flex justify-center">
             <AppLogo />
           </div>
-          <UserNav />
+
+          {/* Right section for UserNav */}
+          <div className="flex items-center">
+            <UserNav />
+          </div>
         </header>
         
         <div className="flex flex-1 overflow-hidden"> {/* This div wraps Sidebar and SidebarInset */}
@@ -30,6 +43,10 @@ export default function AppShell({ children }: AppShellProps) {
             className="border-r"
             side="left"
           >
+            <SidebarHeader className="p-2 flex items-center md:hidden">
+                {/* Mobile view: Logo inside sidebar when it's an overlay */}
+                <AppLogo />
+            </SidebarHeader>
             <SidebarContent className="flex-1">
               <MainNav />
             </SidebarContent>
