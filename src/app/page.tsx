@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useEffect } from 'react';
 import type { Book } from '@/types';
@@ -5,6 +6,7 @@ import BookGenerationForm from '@/components/BookGenerationForm';
 import BookCard from '@/components/BookCard';
 import { Separator } from '@/components/ui/separator';
 import { FileText, PlusCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 // Helper to get initial books from localStorage
 const getInitialBooks = (): Book[] => {
@@ -17,6 +19,7 @@ const getInitialBooks = (): Book[] => {
 export default function DashboardPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
@@ -26,6 +29,18 @@ export default function DashboardPage() {
   const handleBookGenerated = (newBook: Book) => {
     // Add to local state, will also be in localStorage from BookGenerationForm
     setBooks(prevBooks => [newBook, ...prevBooks].sort((a,b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()));
+  };
+
+  const handleDeleteBook = (bookId: string) => {
+    if (typeof window !== 'undefined') {
+      const bookToDelete = books.find(b => b.id === bookId);
+      localStorage.removeItem(`book-${bookId}`);
+      setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
+      toast({
+        title: "Book Deleted",
+        description: `"${bookToDelete?.title || 'The book'}" has been successfully removed.`,
+      });
+    }
   };
 
   return (
@@ -47,7 +62,7 @@ export default function DashboardPage() {
           {isClient && books.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {books.slice(0, 4).map((book) => ( // Show recent 4
-                <BookCard key={book.id} book={book} />
+                <BookCard key={book.id} book={book} onDeleteBook={handleDeleteBook} />
               ))}
             </div>
           ) : (
