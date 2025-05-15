@@ -1,1 +1,5 @@
-// Flows will be imported for their side effects in this file.
+import { config } from 'dotenv';
+config();
+
+import '@/ai/flows/generate-book-chapters.ts';
+import '@/ai/flows/summarize-and-rewrite-chapter.ts';
