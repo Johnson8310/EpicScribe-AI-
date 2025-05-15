@@ -2,7 +2,7 @@
 "use client";
 
 import Link from 'next/link';
-import { useFormState } from 'react-dom';
+import { useActionState } from 'react'; // Changed from 'react-dom' and renamed
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signUpAction, type SignUpState } from '@/actions/auth';
@@ -20,7 +20,7 @@ const initialState: SignUpState = {
 };
 
 export default function SignUpPage() {
-  const [state, formAction] = useFormState(signUpAction, initialState);
+  const [state, formAction] = useActionState(signUpAction, initialState); // Renamed from useFormState
   const { toast } = useToast();
   const router = useRouter();
 
