@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useFormState } from 'react-dom';
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signInAction, type SignInState } from '@/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,15 +23,26 @@ export default function SignInPage() {
   const [state, formAction] = useFormState(signInAction, initialState);
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('signup') === 'success') {
+      toast({
+        title: 'Account Created',
+        description: 'Your account has been successfully created. Please sign in.',
+      });
+      // Remove the query param after showing the toast so it doesn't reappear on refresh
+      router.replace('/signin', { scroll: false });
+    }
+  }, [searchParams, toast, router]);
 
   useEffect(() => {
     if (state.success) {
       toast({
         title: 'Signed In',
-        description: state.message || 'Successfully signed in. Redirecting...',
+        description: state.message,
       });
-      // Redirect handled by server action, but can also be done here
-      // router.push('/'); 
+      router.push('/'); 
     } else if (state.message && !state.success && Object.keys(state.errors || {}).length === 0 && state.message !== '') {
       // General error message from action (not field specific)
       toast({
@@ -73,6 +84,7 @@ export default function SignInPage() {
           <Button type="submit" className="w-full">
             Sign In
           </Button>
+          {/* Display general errors from action that are not field-specific directly in the form as well */}
           {state.message && !state.success && Object.keys(state.errors || {}).length === 0 && state.message !== '' && (
              <p className="text-sm text-destructive text-center">{state.message}</p>
           )}

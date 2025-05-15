@@ -59,22 +59,21 @@ export async function signInAction(prevState: SignInState, formData: FormData): 
   // TODO: Implement actual sign-in logic here (e.g., Firebase Auth)
   // For now, we'll simulate a successful sign-in for a known user or fail
   if (email === 'user@example.com' && password === 'password123') {
-    // In a real app, you'd set a session cookie or token here
     console.log('Sign-in successful (placeholder)');
+    // In a real app, you'd set a session cookie or token here
+    return {
+      message: 'Successfully signed in. Redirecting to your dashboard...',
+      errors: {},
+      success: true,
+    };
   } else {
     console.log('Sign-in failed: Invalid credentials (placeholder)');
     return {
       message: 'Invalid email or password.',
-      errors: {},
+      errors: {}, // No specific field errors for a general auth failure
       success: false,
     };
   }
-  
-  // On successful (placeholder) sign-in, redirect to dashboard
-  redirect('/'); 
-  // This redirect means the success message in the component's useEffect might not show,
-  // which is fine for a redirect. Alternatively, return success and let client redirect.
-  // For now, server redirect is cleaner.
 }
 
 export async function signUpAction(prevState: SignUpState, formData: FormData): Promise<SignUpState> {
@@ -88,7 +87,7 @@ export async function signUpAction(prevState: SignUpState, formData: FormData): 
     };
   }
 
-  const { email, password } = validatedFields.data;
+  const { email } = validatedFields.data;
 
   console.log('Attempting to sign up with:', { email }); // Placeholder
 
@@ -97,7 +96,10 @@ export async function signUpAction(prevState: SignUpState, formData: FormData): 
   
   console.log('Sign-up successful (placeholder) for user:', email);
 
-  // On successful (placeholder) sign-up, redirect to sign-in page
-  redirect('/signin?signup=success'); 
-  // Similar to sign-in, redirecting from server action.
+  return {
+    message: 'Account created successfully! Redirecting to sign in...',
+    errors: {},
+    success: true,
+  };
 }
+

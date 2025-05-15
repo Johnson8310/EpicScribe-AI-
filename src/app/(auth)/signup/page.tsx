@@ -28,9 +28,9 @@ export default function SignUpPage() {
     if (state.success) {
       toast({
         title: 'Account Created',
-        description: state.message || 'Successfully signed up. Redirecting to sign in...',
+        description: state.message, // Message from server action
       });
-      // Redirect handled by server action
+      router.push('/signin?signup=success'); 
     } else if (state.message && !state.success && Object.keys(state.errors || {}).length === 0 && state.message !== '') {
       toast({
         title: 'Sign Up Failed',
@@ -79,6 +79,7 @@ export default function SignUpPage() {
           <Button type="submit" className="w-full">
             Sign Up
           </Button>
+           {/* Display general errors from action that are not field-specific directly in the form as well */}
            {state.message && !state.success && Object.keys(state.errors || {}).length === 0 && state.message !== '' && (
              <p className="text-sm text-destructive text-center">{state.message}</p>
           )}
@@ -95,3 +96,4 @@ export default function SignUpPage() {
     </Card>
   );
 }
+
