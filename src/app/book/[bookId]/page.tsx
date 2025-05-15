@@ -1,3 +1,4 @@
+
 "use client";
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -73,6 +74,8 @@ export default function BookEditorPage() {
         });
     }, 700);
   };
+  
+  const currentChapter = book?.chapters.find(c => c.id === currentChapterId);
 
   if (isLoading) {
     return (
@@ -93,7 +96,6 @@ export default function BookEditorPage() {
     );
   }
 
-  const currentChapter = book.chapters.find(c => c.id === currentChapterId);
 
   return (
     <div className="flex flex-col h-full max-h-[calc(100vh-var(--header-height,4rem)-2*theme(spacing.8))]"> {/* Adjust for header and padding */}
@@ -107,7 +109,7 @@ export default function BookEditorPage() {
                 Editing: {book.title}
             </h1>
         </div>
-        <EditorActions />
+        <EditorActions currentChapter={currentChapter} />
       </header>
 
       <div className="flex-1 grid grid-cols-1 md:grid-cols-[300px_1fr] gap-6 overflow-hidden">
