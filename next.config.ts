@@ -18,11 +18,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  webpack: (config) => {
-    const originalIgnored = config.watchOptions.ignored || [];
+  webpack: (config, { isServer }) => {
+    // Add a rule to ignore the hosting directory
     config.watchOptions.ignored = [
-        ...(Array.isArray(originalIgnored) ? originalIgnored : [originalIgnored]),
-        /hosting\/.*/,
+      ...(Array.isArray(config.watchOptions.ignored) ? config.watchOptions.ignored : []),
+      /hosting\/.*/,
     ];
     return config;
   },
