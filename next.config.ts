@@ -1,3 +1,4 @@
+
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
@@ -19,12 +20,19 @@ const nextConfig: NextConfig = {
     ],
   },
   webpack: (config) => {
-    // Add a rule to ignore the hosting directory
-    config.watchOptions.ignored = [
-      ...(Array.isArray(config.watchOptions.ignored) ? config.watchOptions.ignored : []),
-      '**/hosting/**',
-    ];
-    return config;
+    // Return a new config object to avoid mutating the original
+    return {
+      ...config,
+      watchOptions: {
+        ...config.watchOptions,
+        ignored: [
+          ...(Array.isArray(config.watchOptions.ignored)
+            ? config.watchOptions.ignored
+            : []),
+          '**/hosting/**',
+        ],
+      },
+    };
   },
 };
 
