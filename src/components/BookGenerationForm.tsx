@@ -4,8 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { generateBookChapters, type GenerateBookChaptersInput } from "@/ai/flows/generate-book-chapters";
+import { generateCoverImage, type GenerateCoverImageInput } from "@/ai/flows/generate-cover-image";
 import type { Book, Chapter } from "@/types";
 
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,34 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
     },
   });
 
+  const triggerImageGeneration = (book: Book) => {
+    // Don't wait for this to finish. It runs in the background.
+    (async () => {
+      try {
+        const imageInput: GenerateCoverImageInput = {
+          title: book.title,
+          genre: book.genre,
+        };
+        const result = await generateCoverImage(imageInput);
+        const updatedBook: Book = { ...book, coverImageUrl: result.coverImageUrl };
+        
+        // Update localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`book-${book.id}`, JSON.stringify(updatedBook));
+          // Dispatch event to notify other components of the update
+          window.dispatchEvent(new CustomEvent('bookListUpdated'));
+        }
+      } catch (error) {
+        console.error("Error generating cover image:", error);
+        toast({
+            title: "Cover Generation Failed",
+            description: "Could not generate a cover image, but the book content is ready.",
+            variant: "destructive"
+        });
+      }
+    })();
+  };
+
   async function onSubmit(data: BookGenerationFormData) {
     setIsGenerating(true);
     try {
@@ -87,17 +116,21 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
           chapters: chapters,
           status: 'completed',
           lastModified: new Date().toISOString(),
+          // Use a placeholder initially
           coverImageUrl: `https://placehold.co/300x450.png?text=${encodeURIComponent(data.title.substring(0,15))}`,
         };
         
-        onBookGenerated(newBook); // Callback to update parent state
+        onBookGenerated(newBook); // Callback to update parent state immediately
 
         // Store in localStorage for editor page to pick up (simple state persistence)
         localStorage.setItem(`book-${newBook.id}`, JSON.stringify(newBook));
+        
+        // Start image generation in the background
+        triggerImageGeneration(newBook);
 
         toast({
           title: "Book Generated!",
-          description: `"${data.title}" is ready. Redirecting to editor...`,
+          description: `"${data.title}" is ready. Generating cover image...`,
         });
         router.push(`/book/${newBook.id}`);
       } else {
@@ -115,9 +148,6 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
       setIsGenerating(false);
     }
   }
-  
-  // Ensure Math.random() or new Date() are not used during server render for default values if needed
-  // For example, if numChapters had a random default, it would need useEffect. Here it's static.
 
   return (
     <Card className="w-full max-w-2xl shadow-lg">
