@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,8 +23,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Wand2 } from "lucide-react";
+import { Loader2, Wand2, ImageUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const bookGenerationSchema = z.object({
   title: z.string().min(5, { message: "Book title must be at least 5 characters." }).max(100),
@@ -31,6 +33,8 @@ const bookGenerationSchema = z.object({
   genre: z.string().min(3, { message: "Genre must be at least 3 characters." }).max(50),
   themes: z.string().optional(),
   numChapters: z.coerce.number().min(1, { message: "Number of chapters must be at least 1." }).max(50, { message: "Maximum 50 chapters." }),
+  imagePrompt: z.string().optional(),
+  image: z.any().optional(), // For file upload
 });
 
 type BookGenerationFormData = z.infer<typeof bookGenerationSchema>;
@@ -39,10 +43,21 @@ interface BookGenerationFormProps {
   onBookGenerated: (book: Book) => void;
 }
 
+// Helper to convert file to data URI
+const fileToDataUri = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 export default function BookGenerationForm({ onBookGenerated }: BookGenerationFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
   const form = useForm<BookGenerationFormData>({
     resolver: zodResolver(bookGenerationSchema),
@@ -52,16 +67,19 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
       genre: "",
       themes: "",
       numChapters: 5,
+      imagePrompt: "",
     },
   });
 
-  const triggerImageGeneration = (book: Book) => {
+  const triggerImageGeneration = (book: Book, imageDataUri: string | null = null) => {
     // Don't wait for this to finish. It runs in the background.
     (async () => {
       try {
         const imageInput: GenerateCoverImageInput = {
           title: book.title,
           genre: book.genre,
+          prompt: book.imagePrompt,
+          imageDataUri: imageDataUri ?? undefined
         };
         const result = await generateCoverImage(imageInput);
         const updatedBook: Book = { ...book, coverImageUrl: result.coverImageUrl };
@@ -85,7 +103,21 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
 
   async function onSubmit(data: BookGenerationFormData) {
     setIsGenerating(true);
+    let uploadedImageDataUri: string | null = null;
     try {
+        if (data.image && data.image[0]) {
+            if (data.image[0].size > 4 * 1024 * 1024) { // 4MB limit
+                 toast({
+                    title: "Image Too Large",
+                    description: "Please upload an image smaller than 4MB.",
+                    variant: "destructive",
+                });
+                setIsGenerating(false);
+                return;
+            }
+            uploadedImageDataUri = await fileToDataUri(data.image[0]);
+        }
+
       const aiInput: GenerateBookChaptersInput = {
         prompt: data.prompt,
         genre: data.genre,
@@ -116,6 +148,7 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
           chapters: chapters,
           status: 'completed',
           lastModified: new Date().toISOString(),
+          imagePrompt: data.imagePrompt,
           // Use a placeholder initially
           coverImageUrl: `https://placehold.co/300x450.png?text=${encodeURIComponent(data.title.substring(0,15))}`,
         };
@@ -126,7 +159,7 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
         localStorage.setItem(`book-${newBook.id}`, JSON.stringify(newBook));
         
         // Start image generation in the background
-        triggerImageGeneration(newBook);
+        triggerImageGeneration(newBook, uploadedImageDataUri);
 
         toast({
           title: "Book Generated!",
@@ -179,7 +212,7 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
               name="prompt"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Main Prompt / Idea</FormLabel>
+                  <FormLabel>Main Story Prompt</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Describe the core story, main characters, and plot points..."
@@ -202,7 +235,7 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
                   <FormItem>
                     <FormLabel>Genre</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Science Fiction, Fantasy, Romance" {...field} />
+                      <Input placeholder="e.g., Science Fiction, Fantasy" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -222,7 +255,7 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
                 )}
               />
             </div>
-            <FormField
+             <FormField
               control={form.control}
               name="themes"
               render={({ field }) => (
@@ -232,12 +265,70 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
                     <Input placeholder="e.g., Redemption, Betrayal, Hope" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Comma-separated themes to guide the AI.
+                    Comma-separated themes to guide the story.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+             <FormField
+              control={form.control}
+              name="imagePrompt"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cover Image Prompt (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="e.g., An astronaut looking at a swirling nebula, digital art, vibrant colors..."
+                      className="min-h-[80px]"
+                      {...field}
+                    />
+                  </FormControl>
+                   <FormDescription>
+                    Describe the cover art you envision.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="image"
+              render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Inspiration Image (Optional)</FormLabel>
+                    <FormControl>
+                        <div className="relative">
+                            <Input
+                                type="file"
+                                accept="image/png, image/jpeg, image/webp"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                onChange={(e) => {
+                                    field.onChange(e.target.files);
+                                    setUploadedFileName(e.target.files?.[0]?.name || null);
+                                }}
+                            />
+                            <div
+                                className={cn(
+                                    "flex items-center justify-center w-full h-12 px-4 py-2 rounded-md border border-input bg-background text-sm ring-offset-background",
+                                    "text-muted-foreground",
+                                    "hover:bg-accent hover:text-accent-foreground transition-colors"
+                                )}
+                            >
+                                <ImageUp className="mr-2 h-5 w-5" />
+                                <span>{uploadedFileName || "Upload an inspiration image"}</span>
+                            </div>
+                        </div>
+                    </FormControl>
+                    <FormDescription>
+                        Upload an image to influence the cover generation (max 4MB).
+                    </FormDescription>
+                    <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isGenerating}>
               {isGenerating ? (
                 <>

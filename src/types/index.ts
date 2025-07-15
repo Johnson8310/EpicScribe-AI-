@@ -14,5 +14,6 @@ export interface Book {
   chapters: Chapter[];
   status: 'idle' | 'generating' | 'completed' | 'error';
   lastModified: string; // ISO date string
-  coverImageUrl?: string; // For BookCard placeholder
+  coverImageUrl?: string;
+  imagePrompt?: string; // For custom image prompts
 }

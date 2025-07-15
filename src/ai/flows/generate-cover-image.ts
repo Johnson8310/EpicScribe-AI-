@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow to generate a book cover image.
@@ -13,6 +14,8 @@ import {z} from 'genkit';
 const GenerateCoverImageInputSchema = z.object({
   title: z.string().describe('The title of the book.'),
   genre: z.string().describe('The genre of the book.'),
+  prompt: z.string().optional().describe('A specific prompt for the cover image style and content.'),
+  imageDataUri: z.string().optional().describe("An optional inspiration image as a data URI. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
 });
 export type GenerateCoverImageInput = z.infer<typeof GenerateCoverImageInputSchema>;
 
@@ -31,10 +34,22 @@ const generateCoverImageFlow = ai.defineFlow(
     inputSchema: GenerateCoverImageInputSchema,
     outputSchema: GenerateCoverImageOutputSchema,
   },
-  async ({title, genre}) => {
+  async ({title, genre, prompt, imageDataUri}) => {
+    
+    // Construct the final prompt for the model
+    const basePrompt = prompt 
+      ? prompt 
+      : `A professional, eye-catching book cover for a ${genre} book titled "${title}".`;
+    
+    const finalPrompt = `${basePrompt} The style should be high-quality and suitable for a bestseller. Do not include any text or words on the image itself.`;
+
+    const promptPayload = imageDataUri 
+      ? [{media: {url: imageDataUri}}, {text: finalPrompt}] 
+      : [finalPrompt];
+      
     const {media} = await ai.generate({
         model: 'googleai/gemini-2.0-flash-preview-image-generation',
-        prompt: `Generate a book cover for a ${genre} book titled "${title}". The style should be professional and eye-catching. Avoid putting any text on the image.`,
+        prompt: promptPayload,
         config: {
             responseModalities: ['TEXT', 'IMAGE'],
         },
