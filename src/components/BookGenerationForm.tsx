@@ -23,7 +23,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Wand2, ImageUp } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Wand2, ImageUp, BookText, ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -194,140 +195,156 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Book Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., The Last Stargazer" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="prompt"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Main Story Prompt</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Describe the core story, main characters, and plot points..."
-                      className="min-h-[100px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    The more detailed your prompt, the better the AI can tailor the story.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="genre"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Genre</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Science Fiction, Fantasy" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="numChapters"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Number of Chapters</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g., 10" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-             <FormField
-              control={form.control}
-              name="themes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Key Themes (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Redemption, Betrayal, Hope" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    Comma-separated themes to guide the story.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="imagePrompt"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cover Image Prompt (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="e.g., An astronaut looking at a swirling nebula, digital art, vibrant colors..."
-                      className="min-h-[80px]"
-                      {...field}
-                    />
-                  </FormControl>
-                   <FormDescription>
-                    Describe the cover art you envision.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <Tabs defaultValue="story" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="story">
+                  <BookText className="mr-2 h-4 w-4" />
+                  Story Details
+                </TabsTrigger>
+                <TabsTrigger value="cover">
+                   <ImageIcon className="mr-2 h-4 w-4" />
+                  Cover Art
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="story" className="space-y-6 pt-4">
+                 <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Book Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., The Last Stargazer" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="prompt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Main Story Prompt</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describe the core story, main characters, and plot points..."
+                          className="min-h-[100px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        The more detailed your prompt, the better the AI can tailor the story.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="genre"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Genre</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Science Fiction, Fantasy" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="numChapters"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Number of Chapters</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="e.g., 10" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                 <FormField
+                  control={form.control}
+                  name="themes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Key Themes (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Redemption, Betrayal, Hope" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Comma-separated themes to guide the story.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+              <TabsContent value="cover" className="space-y-6 pt-4">
+                <FormField
+                  control={form.control}
+                  name="imagePrompt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cover Image Prompt (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="e.g., An astronaut looking at a swirling nebula, digital art, vibrant colors..."
+                          className="min-h-[80px]"
+                          {...field}
+                        />
+                      </FormControl>
+                       <FormDescription>
+                        Describe the cover art you envision. If left blank, the AI will create a prompt from your book title and genre.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="image"
-              render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Inspiration Image (Optional)</FormLabel>
-                    <FormControl>
-                        <div className="relative">
-                            <Input
-                                type="file"
-                                accept="image/png, image/jpeg, image/webp"
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                onChange={(e) => {
-                                    field.onChange(e.target.files);
-                                    setUploadedFileName(e.target.files?.[0]?.name || null);
-                                }}
-                            />
-                            <div
-                                className={cn(
-                                    "flex items-center justify-center w-full h-12 px-4 py-2 rounded-md border border-input bg-background text-sm ring-offset-background",
-                                    "text-muted-foreground",
-                                    "hover:bg-accent hover:text-accent-foreground transition-colors"
-                                )}
-                            >
-                                <ImageUp className="mr-2 h-5 w-5" />
-                                <span>{uploadedFileName || "Upload an inspiration image"}</span>
+                <FormField
+                  control={form.control}
+                  name="image"
+                  render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Inspiration Image (Optional)</FormLabel>
+                        <FormControl>
+                            <div className="relative">
+                                <Input
+                                    type="file"
+                                    accept="image/png, image/jpeg, image/webp"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={(e) => {
+                                        field.onChange(e.target.files);
+                                        setUploadedFileName(e.target.files?.[0]?.name || null);
+                                    }}
+                                />
+                                <div
+                                    className={cn(
+                                        "flex items-center justify-center w-full h-12 px-4 py-2 rounded-md border border-input bg-background text-sm ring-offset-background",
+                                        "text-muted-foreground",
+                                        "hover:bg-accent hover:text-accent-foreground transition-colors"
+                                    )}
+                                >
+                                    <ImageUp className="mr-2 h-5 w-5" />
+                                    <span>{uploadedFileName || "Upload an inspiration image"}</span>
+                                </div>
                             </div>
-                        </div>
-                    </FormControl>
-                    <FormDescription>
-                        Upload an image to influence the cover generation (max 4MB).
-                    </FormDescription>
-                    <FormMessage />
-                </FormItem>
-              )}
-            />
+                        </FormControl>
+                        <FormDescription>
+                            Upload an image to influence the cover generation (max 4MB).
+                        </FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+            </Tabs>
 
             <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isGenerating}>
               {isGenerating ? (
