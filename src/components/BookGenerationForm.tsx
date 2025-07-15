@@ -24,18 +24,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Wand2, ImageUp, BookText, ImageIcon } from "lucide-react";
+import { Loader2, Wand2, ImageUp, BookText, ImageIcon, Import } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 const bookGenerationSchema = z.object({
   title: z.string().min(5, { message: "Book title must be at least 5 characters." }).max(100),
-  prompt: z.string().min(10, { message: "Prompt must be at least 10 characters." }).max(1000),
+  prompt: z.string().min(10, { message: "Prompt must be at least 10 characters." }).max(1000).optional(),
   genre: z.string().min(3, { message: "Genre must be at least 3 characters." }).max(50),
   themes: z.string().optional(),
-  numChapters: z.coerce.number().min(1, { message: "Number of chapters must be at least 1." }).max(50, { message: "Maximum 50 chapters." }),
+  numChapters: z.coerce.number().min(1, { message: "Number of chapters must be at least 1." }).max(50, { message: "Maximum 50 chapters." }).optional(),
   imagePrompt: z.string().optional(),
   image: z.any().optional(), // For file upload
+  customContent: z.string().optional(), // For custom content import
 });
 
 type BookGenerationFormData = z.infer<typeof bookGenerationSchema>;
@@ -54,11 +55,49 @@ const fileToDataUri = (file: File): Promise<string> => {
     });
 }
 
+// Helper to split custom content into chapters
+const splitContentIntoChapters = (content: string): { title: string; content: string }[] => {
+    // Regex to split by "Chapter X" or "CHAPTER X" (including roman numerals)
+    const chapterRegex = /^(Chapter\s+(\d+|[IVXLCDM]+)|CHAPTER\s+(\d+|[IVXLCDM]+))/im;
+    const parts = content.split(chapterRegex);
+
+    const chapters: { title: string; content: string }[] = [];
+    let currentContent = '';
+    
+    // The first part is anything before "Chapter 1"
+    if (parts.length > 1 && parts[0].trim() !== '') {
+        currentContent = parts[0].trim();
+    }
+
+    for (let i = 1; i < parts.length; i += 4) {
+        const title = parts[i]?.trim();
+        const chapterBody = parts[i + 3]?.trim();
+
+        if (title && chapterBody) {
+             if (currentContent) {
+                // This handles content before the first recognized chapter title
+                chapters.push({ title: "Prologue", content: currentContent });
+                currentContent = '';
+            }
+            chapters.push({ title, content: chapterBody });
+        }
+    }
+
+    // If no chapters were found, treat the whole content as one chapter
+    if (chapters.length === 0 && content.trim()) {
+        chapters.push({ title: "Chapter 1", content: content.trim() });
+    }
+
+    return chapters;
+};
+
+
 export default function BookGenerationForm({ onBookGenerated }: BookGenerationFormProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("story");
 
   const form = useForm<BookGenerationFormData>({
     resolver: zodResolver(bookGenerationSchema),
@@ -69,6 +108,7 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
       themes: "",
       numChapters: 5,
       imagePrompt: "",
+      customContent: "",
     },
   });
 
@@ -118,34 +158,63 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
             }
             uploadedImageDataUri = await fileToDataUri(data.image[0]);
         }
+        
+        let generatedChapters: { title: string, content: string }[] = [];
+        let finalPrompt = data.prompt || `A ${data.genre} story.`;
+        let finalNumChapters = data.numChapters || 1;
 
-      const aiInput: GenerateBookChaptersInput = {
-        prompt: data.prompt,
-        genre: data.genre,
-        chapters: data.numChapters,
-      };
-      // Add themes to prompt if provided
-      if (data.themes && data.themes.trim() !== "") {
-        aiInput.prompt = `${data.prompt} Key themes: ${data.themes}.`;
-      }
-      
-      const result = await generateBookChapters(aiInput);
+        if (activeTab === 'import' && data.customContent) {
+            finalPrompt = data.customContent.substring(0, 1000); // Use start of content as prompt
+            generatedChapters = splitContentIntoChapters(data.customContent);
+            finalNumChapters = generatedChapters.length;
+        } else {
+            if (!data.prompt || !data.numChapters) {
+                 toast({
+                    title: "Missing Information",
+                    description: "Please provide a story prompt and the number of chapters for AI generation.",
+                    variant: "destructive",
+                });
+                setIsGenerating(false);
+                return;
+            }
 
-      if (result.chapters && result.chapters.length > 0) {
+            const aiInput: GenerateBookChaptersInput = {
+                prompt: data.prompt,
+                genre: data.genre,
+                chapters: data.numChapters,
+            };
+            if (data.themes && data.themes.trim() !== "") {
+                aiInput.prompt = `${data.prompt} Key themes: ${data.themes}.`;
+            }
+            
+            const result = await generateBookChapters(aiInput);
+            if (!result.chapters || result.chapters.length === 0) {
+                 throw new Error("AI did not return any chapters.");
+            }
+            generatedChapters = result.chapters.map((content, index) => ({
+                title: `Chapter ${index + 1}`,
+                content: content,
+            }));
+            finalPrompt = data.prompt;
+            finalNumChapters = data.numChapters;
+        }
+
+
+      if (generatedChapters.length > 0) {
         const newBookId = Date.now().toString(); // Simple unique ID for client-side
-        const chapters: Chapter[] = result.chapters.map((content, index) => ({
+        const chapters: Chapter[] = generatedChapters.map((ch, index) => ({
           id: `${newBookId}-chapter-${index + 1}`,
-          title: `Chapter ${index + 1}`,
-          content: content,
+          title: ch.title,
+          content: ch.content,
         }));
 
         const newBook: Book = {
           id: newBookId,
           title: data.title,
-          prompt: data.prompt,
+          prompt: finalPrompt,
           genre: data.genre,
           themes: data.themes,
-          numChapters: data.numChapters,
+          numChapters: finalNumChapters,
           chapters: chapters,
           status: 'completed',
           lastModified: new Date().toISOString(),
@@ -168,7 +237,7 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
         });
         router.push(`/book/${newBook.id}`);
       } else {
-        throw new Error("AI did not return any chapters.");
+        throw new Error("No chapters were created from the provided content or AI.");
       }
     } catch (error) {
       console.error("Error generating book:", error);
@@ -183,6 +252,8 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
     }
   }
 
+  const isImport = activeTab === 'import';
+
   return (
     <Card className="w-full max-w-2xl shadow-lg">
       <CardHeader>
@@ -195,11 +266,15 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <Tabs defaultValue="story" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+            <Tabs defaultValue="story" className="w-full" onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="story">
                   <BookText className="mr-2 h-4 w-4" />
-                  Story Details
+                  AI Generate
+                </TabsTrigger>
+                <TabsTrigger value="import">
+                   <Import className="mr-2 h-4 w-4" />
+                  Import Content
                 </TabsTrigger>
                 <TabsTrigger value="cover">
                    <ImageIcon className="mr-2 h-4 w-4" />
@@ -285,7 +360,69 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
                   )}
                 />
               </TabsContent>
+               <TabsContent value="import" className="space-y-6 pt-4">
+                 <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Book Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., The Last Stargazer" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="genre"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Genre</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Science Fiction, Fantasy" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                <FormField
+                  control={form.control}
+                  name="customContent"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Your Book Content</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Paste your entire story or book content here. Use chapter headings like 'Chapter 1' or 'Chapter II' to automatically split your content."
+                          className="min-h-[200px] font-mono"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        The content will be split into chapters based on common headings.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
               <TabsContent value="cover" className="space-y-6 pt-4">
+                 <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Book Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., The Last Stargazer" {...field} value={form.getValues().title} disabled />
+                      </FormControl>
+                      <FormDescription>The title is shared across all tabs.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="imagePrompt"
@@ -355,7 +492,7 @@ export default function BookGenerationForm({ onBookGenerated }: BookGenerationFo
               ) : (
                 <>
                   <Wand2 className="mr-2 h-4 w-4" />
-                  Generate Book
+                   {isImport ? "Create Book from Content" : "Generate Book with AI"}
                 </>
               )}
             </Button>
