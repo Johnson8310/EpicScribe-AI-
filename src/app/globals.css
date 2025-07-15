@@ -57,13 +57,13 @@ body {
 
   .dark {
     --background: 222.2 84% 4.9%; /* Black */
-    --foreground: 210 40% 98%; /* White */
+    --foreground: 175 75% 55%; /* Image Teal */
 
     --card: 222.2 84% 4.9%; /* Black */
-    --card-foreground: 210 40% 98%; /* White */
+    --card-foreground: 175 75% 55%; /* Image Teal */
 
     --popover: 222.2 84% 4.9%; /* Black */
-    --popover-foreground: 210 40% 98%; /* White */
+    --popover-foreground: 175 75% 55%; /* Image Teal */
 
     --primary: 163 76% 42%; /* Teal */
     --primary-foreground: 222.2 47.4% 11.2%; /* Dark Gray for contrast */
@@ -86,7 +86,7 @@ body {
 
     /* Sidebar variables */
     --sidebar-background: 222.2 84% 4.9%; /* Black */
-    --sidebar-foreground: 210 40% 98%; /* White */
+    --sidebar-foreground: 175 75% 55%; /* Image Teal */
     --sidebar-primary: 163 76% 42%; /* Teal */
     --sidebar-primary-foreground: 222.2 47.4% 11.2%; /* Dark Gray */
     --sidebar-accent: 217.2 32.6% 17.5%; /* Dark Gray for hover */
