@@ -10,7 +10,7 @@ const navItems = [
   { href: '/?tab=ai-generator', label: 'AI Generator', icon: Wand2, tab: 'ai-generator' },
   { href: '/?tab=import-content', label: 'Import', icon: Import, tab: 'import-content' },
   { href: '/?tab=cover-generator', label: 'Cover Generator', icon: FileImage, tab: 'cover-generator'},
-  { href: '/?tab=storyboard', label: 'Storyboard', icon: Film, tab: 'storyboard' },
+  { href: '/?tab=storyboard', label: 'Interactive Storyboard', icon: Film, tab: 'storyboard' },
   { href: '/?tab=world-hub', label: 'World Hub', icon: Globe, tab: 'world-hub' },
   { href: '/?tab=my-books', label: 'My Books', icon: BookCopy, tab: 'my-books' },
 ];
