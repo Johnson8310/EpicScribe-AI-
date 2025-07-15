@@ -32,6 +32,14 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto py-2">
+       <div className="mb-8 text-center">
+        <h2 
+          className="text-2xl font-cursive bg-gradient-to-r from-teal-600 to-cyan-400 bg-clip-text text-transparent drop-shadow-sm"
+          style={{ fontFamily: "'Great Vibes', cursive" }}
+        >
+          Epic Tales, Born From A Single Spark
+        </h2>
+      </div>
       {renderActiveComponent()}
     </div>
   );
