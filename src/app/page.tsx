@@ -8,6 +8,7 @@ import ImportContent from '@/components/tabs/ImportContent';
 import CoverArtGenerator from '@/components/tabs/CoverArtGenerator';
 import MyBooks from '@/components/tabs/MyBooks';
 import Storyboard from '@/components/tabs/Storyboard';
+import WorldBuildingHub from '@/components/tabs/WorldBuildingHub';
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
@@ -23,6 +24,8 @@ export default function DashboardPage() {
         return <CoverArtGenerator />;
       case 'storyboard':
         return <Storyboard />;
+      case 'world-hub':
+        return <WorldBuildingHub />;
       case 'my-books':
         return <MyBooks />;
       default:

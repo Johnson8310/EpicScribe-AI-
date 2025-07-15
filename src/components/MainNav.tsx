@@ -2,7 +2,7 @@
 "use client";
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { BookCopy, LayoutDashboard, FileImage, Import, Wand2, Film } from 'lucide-react';
+import { BookCopy, LayoutDashboard, FileImage, Import, Wand2, Film, Globe } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ const navItems = [
   { href: '/?tab=import-content', label: 'Import', icon: Import, tab: 'import-content' },
   { href: '/?tab=cover-generator', label: 'Cover Generator', icon: FileImage, tab: 'cover-generator'},
   { href: '/?tab=storyboard', label: 'Storyboard', icon: Film, tab: 'storyboard' },
+  { href: '/?tab=world-hub', label: 'World Hub', icon: Globe, tab: 'world-hub' },
   { href: '/?tab=my-books', label: 'My Books', icon: BookCopy, tab: 'my-books' },
 ];
 
