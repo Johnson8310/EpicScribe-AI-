@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileDown, FileUp, FileArchive, Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Chapter } from "@/types";
@@ -36,11 +37,21 @@ const downloadTextFile = (filename: string, text: string) => {
   document.body.removeChild(element);
 };
 
+const advancedTools = [
+  { value: 'expand', label: 'Expand', description: 'Make this chapter longer and more detailed.' },
+  { value: 'shorten', label: 'Shorten', description: 'Condense this chapter to its key points.' },
+  { value: 'improve-flow', label: 'Improve Flow', description: 'Enhance transitions and pacing for a smoother read.' },
+  { value: 'increase-suspense', label: 'Increase Suspense', description: 'Add more tension and intrigue.' },
+  { value: 'add-dialogue', label: 'Add Dialogue', description: 'Introduce or expand dialogue between characters.' },
+];
+
 export default function EditorActions({ currentChapter, onChapterRewrite }: EditorActionsProps) {
   const { toast } = useToast();
   const [isRewriteDialogOpen, setIsRewriteDialogOpen] = useState(false);
   const [rewriteInstructions, setRewriteInstructions] = useState("");
   const [isRewriting, setIsRewriting] = useState(false);
+  const [selectedTool, setSelectedTool] = useState('');
+
 
   const handleExport = (format: "PDF" | "DOCX" | "EPUB") => {
     const chapterContent = currentChapter?.content;
@@ -81,6 +92,16 @@ export default function EditorActions({ currentChapter, onChapterRewrite }: Edit
       description: `Chapter "${chapterTitle}" downloaded as TXT (${placeholderFormat} placeholder). Full ${placeholderFormat} export is not yet implemented.`,
     });
   };
+  
+  const handleToolSelect = (value: string) => {
+    setSelectedTool(value);
+    const tool = advancedTools.find(t => t.value === value);
+    if(tool) {
+      setRewriteInstructions(tool.description);
+    } else {
+      setRewriteInstructions('');
+    }
+  }
 
   const handleRewriteSubmit = async () => {
     if (!currentChapter || !rewriteInstructions.trim()) {
@@ -105,6 +126,7 @@ export default function EditorActions({ currentChapter, onChapterRewrite }: Edit
       });
       setIsRewriteDialogOpen(false); // Close dialog on success
       setRewriteInstructions(""); // Clear instructions
+      setSelectedTool(''); // Reset tool selection
     } catch (error) {
       console.error("Error rewriting chapter:", error);
       toast({
@@ -123,25 +145,40 @@ export default function EditorActions({ currentChapter, onChapterRewrite }: Edit
         <DialogTrigger asChild>
           <Button variant="outline" size="sm" disabled={!currentChapter || isRewriting}>
             <Sparkles className="mr-2 h-4 w-4" />
-            Rewrite Chapter
+            AI Editing Tools
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[525px]">
           <DialogHeader>
-            <DialogTitle>Rewrite Chapter: {currentChapter?.title}</DialogTitle>
+            <DialogTitle>AI Editing Tools: {currentChapter?.title}</DialogTitle>
             <DialogDescription>
-              Provide instructions for the AI on how you&apos;d like to rewrite this chapter.
-              For example: &quot;Make this more concise&quot; or &quot;Add more dialogue between character A and B&quot;.
+              Select a tool or provide custom instructions for the AI on how to rewrite this chapter.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="rewrite-instructions">Instructions</Label>
+              <Label htmlFor="advanced-tool-select">Select a Tool (Optional)</Label>
+               <Select onValueChange={handleToolSelect} value={selectedTool}>
+                <SelectTrigger id="advanced-tool-select" disabled={isRewriting}>
+                  <SelectValue placeholder="Choose a preset editing tool..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {advancedTools.map(tool => (
+                    <SelectItem key={tool.value} value={tool.value}>{tool.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="rewrite-instructions">Or Write Custom Instructions</Label>
               <Textarea
                 id="rewrite-instructions"
-                placeholder="Enter rewrite instructions here..."
+                placeholder="e.g., &quot;Make this more concise&quot; or &quot;Add more dialogue between character A and B&quot;."
                 value={rewriteInstructions}
-                onChange={(e) => setRewriteInstructions(e.target.value)}
+                onChange={(e) => {
+                  setRewriteInstructions(e.target.value);
+                  setSelectedTool(''); // Clear selected tool if typing custom instructions
+                }}
                 className="min-h-[100px]"
                 disabled={isRewriting}
               />
