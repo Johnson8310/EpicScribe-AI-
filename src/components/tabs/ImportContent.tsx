@@ -5,8 +5,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Book, Chapter } from "@/types";
+import { addBook } from "@/lib/firestore";
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -68,6 +71,15 @@ export default function ImportContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
 
   const form = useForm<ImportFormData>({
     resolver: zodResolver(importSchema),
@@ -77,14 +89,14 @@ export default function ImportContent() {
       customContent: "",
     },
   });
-  
-  const onBookGenerated = (newBook: Book) => {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('bookListUpdated'));
-    }
-  };
 
   async function onSubmit(data: ImportFormData) {
+    if (!user) {
+        toast({ title: "Not Signed In", description: "You must be signed in to import a book.", variant: "destructive"});
+        router.push('/signin?redirect=/?tab=import-content');
+        return;
+    }
+
     setIsProcessing(true);
     try {
         const generatedChapters = splitContentIntoChapters(data.customContent);
@@ -93,33 +105,31 @@ export default function ImportContent() {
             throw new Error("Could not extract any chapters from the content.");
         }
 
-        const newBookId = Date.now().toString();
-        const chapters: Chapter[] = generatedChapters.map((ch, index) => ({
-          id: `${newBookId}-chapter-${index + 1}`,
+        const tempBookId = Date.now();
+        const chapters: Omit<Chapter, 'id'>[] & { id: string }[] = generatedChapters.map((ch, index) => ({
+          id: `${tempBookId}-chapter-${index + 1}`,
           title: ch.title,
           content: ch.content,
         }));
 
-        const newBook: Book = {
-          id: newBookId,
+        const newBookData = {
           title: data.title,
           prompt: data.customContent.substring(0, 500), // Use start of content as prompt
           genre: data.genre,
           numChapters: chapters.length,
           chapters: chapters,
-          status: 'completed',
-          lastModified: new Date().toISOString(),
+          status: 'completed' as const,
+          userId: user.uid,
           coverImageUrl: `https://placehold.co/300x450.png?text=${encodeURIComponent(data.title.substring(0,15))}`,
         };
         
-        onBookGenerated(newBook);
-        localStorage.setItem(`book-${newBook.id}`, JSON.stringify(newBook));
+        const bookId = await addBook(newBookData);
 
         toast({
           title: "Book Imported!",
           description: `"${data.title}" has been created from your content.`,
         });
-        router.push(`/book/${newBook.id}`);
+        router.push(`/book/${bookId}`);
 
     } catch (error) {
       console.error("Error importing book:", error);
@@ -191,12 +201,14 @@ export default function ImportContent() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={isProcessing}>
+            <Button type="submit" className="w-full" disabled={isProcessing || !user}>
               {isProcessing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Processing...
                 </>
+              ) : !user ? (
+                "Sign In to Import Content"
               ) : (
                 <>
                   <Import className="mr-2 h-4 w-4" />

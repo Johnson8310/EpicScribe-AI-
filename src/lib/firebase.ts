@@ -1,8 +1,7 @@
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-// Import getFirestore if you plan to use Firestore
-// import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 // IMPORTANT: Replace these with your actual Firebase project configuration
@@ -25,6 +24,6 @@ if (!getApps().length) {
 }
 
 const auth: Auth = getAuth(app);
-// const db: Firestore = getFirestore(app); // Uncomment if you use Firestore
+const db: Firestore = getFirestore(app);
 
-export { app, auth /*, db */ };
+export { app, auth, db };

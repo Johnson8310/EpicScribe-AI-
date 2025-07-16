@@ -4,62 +4,67 @@
 import { useState, useEffect } from 'react';
 import type { Book } from '@/types';
 import BookCard from '@/components/BookCard';
-import { BookCopy, PlusCircle } from 'lucide-react';
+import { BookCopy, PlusCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-
-const getInitialBooks = (): Book[] => {
-  if (typeof window === 'undefined') return [];
-  const keys = Object.keys(localStorage);
-  const bookKeys = keys.filter(key => key.startsWith('book-'));
-  try {
-    return bookKeys.map(key => JSON.parse(localStorage.getItem(key) as string)).sort((a,b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
-  } catch (error) {
-    console.error("Error parsing books from localStorage", error);
-    return [];
-  }
-};
+import { getBooksByUserId, deleteBook } from '@/lib/firestore';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { Card } from '@/components/ui/card';
 
 export default function MyBooks() {
   const [books, setBooks] = useState<Book[]>([]);
-  const [isClient, setIsClient] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    setIsClient(true);
-    setBooks(getInitialBooks());
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        fetchBooks(currentUser.uid);
+      } else {
+        setIsLoading(false);
+        setBooks([]); // Clear books if user logs out
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setBooks(getInitialBooks());
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('storage', handleStorageChange);
-      const handleBookListUpdate = () => setBooks(getInitialBooks());
-      window.addEventListener('bookListUpdated', handleBookListUpdate);
-      
-      return () => {
-        window.removeEventListener('storage', handleStorageChange);
-        window.removeEventListener('bookListUpdated', handleBookListUpdate);
-      };
+  const fetchBooks = async (userId: string) => {
+    setIsLoading(true);
+    try {
+      const userBooks = await getBooksByUserId(userId);
+      setBooks(userBooks);
+    } catch (error) {
+      console.error("Error fetching books:", error);
+      toast({
+        title: "Error",
+        description: "Could not fetch your books.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  };
 
-
-  const handleDeleteBook = (bookId: string) => {
-    if (typeof window !== 'undefined') {
-      const bookToDelete = books.find(b => b.id === bookId);
-      localStorage.removeItem(`book-${bookId}`);
-      const updatedBooks = books.filter(b => b.id !== bookId);
-      setBooks(updatedBooks);
+  const handleDeleteBook = async (bookId: string) => {
+    const bookToDelete = books.find(b => b.id === bookId);
+    try {
+      await deleteBook(bookId);
+      setBooks(prevBooks => prevBooks.filter(b => b.id !== bookId));
       toast({
         title: "Book Deleted",
         description: `"${bookToDelete?.title || 'The book'}" has been successfully removed.`,
       });
-      window.dispatchEvent(new CustomEvent('bookListUpdated'));
+    } catch (error) {
+      console.error("Error deleting book:", error);
+      toast({
+        title: "Error",
+        description: "Could not delete the book.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -77,45 +82,36 @@ export default function MyBooks() {
         </Button>
       </div>
 
-      {isClient && books.length > 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      ) : !user ? (
+        <div className="text-center py-10 border-2 border-dashed border-border rounded-lg">
+          <h3 className="text-xl font-medium text-foreground">Please Sign In</h3>
+          <p className="text-muted-foreground">
+            <Link href="/signin" className="text-primary hover:underline">
+              Sign in
+            </Link> to see your saved books.
+          </p>
+        </div>
+      ) : books.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {books.map((book) => (
             <BookCard key={book.id} book={book} onDeleteBook={handleDeleteBook} />
           ))}
         </div>
       ) : (
-        isClient && (
-          <div className="text-center py-10 border-2 border-dashed border-border rounded-lg">
-            <PlusCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-xl font-medium text-foreground">No books yet</h3>
-            <p className="text-muted-foreground">
-              You haven&apos;t created any books. Go to the{' '}
-              <Link href="/?tab=ai-generator" scroll={false} className="text-primary hover:underline">
-                AI Book Generator
-              </Link>{' '}
-              to generate your first one!
-            </p>
-          </div>
-        )
-      )}
-      {!isClient && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i} className="flex flex-col overflow-hidden shadow-md">
-                <div className="w-full h-48 bg-muted animate-pulse" />
-                <div className="p-4 flex-grow">
-                    <div className="h-5 w-3/4 bg-muted animate-pulse mb-2 rounded" />
-                    <div className="h-4 w-1/4 bg-muted animate-pulse mb-3 rounded" />
-                    <div className="h-4 w-full bg-muted animate-pulse mb-1 rounded" />
-                    <div className="h-4 w-2/3 bg-muted animate-pulse mb-3 rounded" />
-                     <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
-                </div>
-                 <div className="p-4 bg-secondary/30 border-t flex items-center gap-2">
-                     <div className="h-9 w-full bg-muted animate-pulse rounded" />
-                     <div className="h-9 w-10 bg-muted animate-pulse rounded" />
-                 </div>
-            </Card>
-          ))}
+        <div className="text-center py-10 border-2 border-dashed border-border rounded-lg">
+          <PlusCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-xl font-medium text-foreground">No books yet</h3>
+          <p className="text-muted-foreground">
+            You haven&apos;t created any books. Go to the{' '}
+            <Link href="/?tab=ai-generator" scroll={false} className="text-primary hover:underline">
+              AI Book Generator
+            </Link>{' '}
+            to generate your first one!
+          </p>
         </div>
       )}
     </div>

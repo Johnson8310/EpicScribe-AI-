@@ -5,9 +5,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { generateBookChapters, type GenerateBookChaptersInput } from "@/ai/flows/generate-book-chapters";
 import { generateCoverImage, type GenerateCoverImageInput } from "@/ai/flows/generate-cover-image";
+import { addBook, updateBookCover } from "@/lib/firestore";
 import type { Book, Chapter } from "@/types";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, Wand2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 const bookGenerationSchema = z.object({
   title: z.string().min(5, { message: "Book title must be at least 5 characters." }).max(100),
@@ -40,6 +43,15 @@ export default function AIBookGenerator() {
   const router = useRouter();
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
 
   const form = useForm<BookGenerationFormData>({
     resolver: zodResolver(bookGenerationSchema),
@@ -52,20 +64,12 @@ export default function AIBookGenerator() {
     },
   });
 
-  const triggerImageGeneration = (book: Book) => {
+  const triggerImageGeneration = (bookId: string, title: string, genre: string) => {
     (async () => {
       try {
-        const imageInput: GenerateCoverImageInput = {
-          title: book.title,
-          genre: book.genre,
-        };
+        const imageInput: GenerateCoverImageInput = { title, genre };
         const result = await generateCoverImage(imageInput);
-        const updatedBook: Book = { ...book, coverImageUrl: result.coverImageUrl };
-        
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(`book-${book.id}`, JSON.stringify(updatedBook));
-          window.dispatchEvent(new CustomEvent('bookListUpdated'));
-        }
+        await updateBookCover(bookId, result.coverImageUrl);
       } catch (error) {
         console.error("Error generating cover image:", error);
         toast({
@@ -77,13 +81,14 @@ export default function AIBookGenerator() {
     })();
   };
 
-  const onBookGenerated = (newBook: Book) => {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('bookListUpdated'));
-    }
-  };
 
   async function onSubmit(data: BookGenerationFormData) {
+    if (!user) {
+        toast({ title: "Not Signed In", description: "You must be signed in to create a book.", variant: "destructive"});
+        router.push('/signin?redirect=/?tab=ai-generator');
+        return;
+    }
+
     setIsGenerating(true);
     try {
       const aiInput: GenerateBookChaptersInput = {
@@ -99,40 +104,35 @@ export default function AIBookGenerator() {
       if (!result.chapters || result.chapters.length === 0) {
            throw new Error("AI did not return any chapters.");
       }
-      const generatedChapters = result.chapters.map((content, index) => ({
+
+      const tempBookId = Date.now();
+      const chapters: Omit<Chapter, 'id'>[] & { id: string }[] = result.chapters.map((content, index) => ({
+          id: `${tempBookId}-chapter-${index + 1}`,
           title: `Chapter ${index + 1}`,
           content: content,
       }));
 
-      const newBookId = Date.now().toString();
-      const chapters: Chapter[] = generatedChapters.map((ch, index) => ({
-        id: `${newBookId}-chapter-${index + 1}`,
-        title: ch.title,
-        content: ch.content,
-      }));
-
-      const newBook: Book = {
-        id: newBookId,
+      const newBookData = {
         title: data.title,
         prompt: data.prompt,
         genre: data.genre,
         themes: data.themes,
         numChapters: data.numChapters,
         chapters: chapters,
-        status: 'completed',
-        lastModified: new Date().toISOString(),
+        status: 'completed' as const,
+        userId: user.uid,
         coverImageUrl: `https://placehold.co/300x450.png?text=${encodeURIComponent(data.title.substring(0,15))}`,
       };
       
-      onBookGenerated(newBook);
-      localStorage.setItem(`book-${newBook.id}`, JSON.stringify(newBook));
-      triggerImageGeneration(newBook);
+      const bookId = await addBook(newBookData);
+      
+      triggerImageGeneration(bookId, data.title, data.genre);
 
       toast({
         title: "Book Generated!",
         description: `"${data.title}" is ready. Generating cover image...`,
       });
-      router.push(`/book/${newBook.id}`);
+      router.push(`/book/${bookId}`);
     } catch (error) {
       console.error("Error generating book:", error);
       toast({
@@ -235,12 +235,14 @@ export default function AIBookGenerator() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={isGenerating}>
+            <Button type="submit" className="w-full" disabled={isGenerating || !user}>
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Generating...
                 </>
+              ) : !user ? (
+                "Sign In to Create a Book"
               ) : (
                 <>
                   <Wand2 className="mr-2 h-4 w-4" />

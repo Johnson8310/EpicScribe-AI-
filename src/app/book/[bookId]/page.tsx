@@ -11,6 +11,9 @@ import EditorActions from '@/components/EditorActions';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Save, Edit3, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getBookById, updateChapterContent } from '@/lib/firestore';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 export default function BookEditorPage() {
   const params = useParams();
@@ -19,28 +22,58 @@ export default function BookEditorPage() {
   const bookId = params.bookId as string;
 
   const [book, setBook] = useState<Book | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentChapterId, setCurrentChapterId] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        toast({ title: "Access Denied", description: "You must be signed in to edit a book.", variant: "destructive" });
+        router.push(`/signin?redirect=/book/${bookId}`);
+      } else {
+        setCurrentUser(user);
+      }
+    });
+    return () => unsubscribe();
+  }, [router, bookId, toast]);
 
   useEffect(() => {
-    if (bookId && typeof window !== 'undefined') {
-      const storedBookData = localStorage.getItem(`book-${bookId}`);
-      if (storedBookData) {
-        const parsedBook: Book = JSON.parse(storedBookData);
-        setBook(parsedBook);
-        if (parsedBook.chapters && parsedBook.chapters.length > 0) {
-          setCurrentChapterId(parsedBook.chapters[0].id);
-          setEditedContent(parsedBook.chapters[0].content);
+    if (bookId && currentUser) {
+      const fetchBook = async () => {
+        setIsLoading(true);
+        try {
+          const fetchedBook = await getBookById(bookId);
+          if (fetchedBook) {
+            // Security check: ensure the logged-in user owns this book
+            if (fetchedBook.userId !== currentUser.uid) {
+               toast({ title: "Access Denied", description: "You do not have permission to view this book.", variant: "destructive" });
+               router.push('/');
+               return;
+            }
+
+            setBook(fetchedBook);
+            if (fetchedBook.chapters && fetchedBook.chapters.length > 0) {
+              const firstChapter = fetchedBook.chapters[0];
+              setCurrentChapterId(firstChapter.id);
+              setEditedContent(firstChapter.content);
+            }
+          } else {
+            toast({ title: "Error", description: "Book not found.", variant: "destructive" });
+            router.push('/'); // Redirect if book not found
+          }
+        } catch (error) {
+          console.error("Error fetching book: ", error);
+          toast({ title: "Error", description: "Could not load the book.", variant: "destructive" });
+        } finally {
+          setIsLoading(false);
         }
-      } else {
-        toast({ title: "Error", description: "Book not found.", variant: "destructive" });
-        router.push('/'); // Redirect if book not found
-      }
-      setIsLoading(false);
+      };
+      fetchBook();
     }
-  }, [bookId, router, toast]);
+  }, [bookId, currentUser, router, toast]);
 
   const handleChapterSelect = (chapterId: string) => {
     setCurrentChapterId(chapterId);
@@ -54,32 +87,33 @@ export default function BookEditorPage() {
     setEditedContent(e.target.value);
   };
 
-  const handleSaveChanges = () => {
+  const handleSaveChanges = async () => {
     if (!book || !currentChapterId) return;
     setIsSaving(true);
+    
+    try {
+      await updateChapterContent(book.id, currentChapterId, editedContent);
+      
+      // Update local state to reflect changes immediately
+      const updatedChapters = book.chapters.map(ch =>
+        ch.id === currentChapterId ? { ...ch, content: editedContent } : ch
+      );
+      setBook(prevBook => prevBook ? { ...prevBook, chapters: updatedChapters, lastModified: new Date().toISOString() } : null);
 
-    const updatedChapters = book.chapters.map(ch =>
-      ch.id === currentChapterId ? { ...ch, content: editedContent } : ch
-    );
-    const updatedBook = { ...book, chapters: updatedChapters, lastModified: new Date().toISOString() };
-    
-    setBook(updatedBook);
-    localStorage.setItem(`book-${book.id}`, JSON.stringify(updatedBook));
-    
-    setTimeout(() => { // Simulate save delay
+      toast({
+          title: "Chapter Saved!",
+          description: `${book.chapters.find(c=>c.id === currentChapterId)?.title} has been updated.`,
+      });
+    } catch (error) {
+        console.error("Error saving chapter:", error);
+        toast({ title: "Error", description: "Could not save chapter changes.", variant: "destructive" });
+    } finally {
         setIsSaving(false);
-        toast({
-            title: "Chapter Saved!",
-            description: `${book.chapters.find(c=>c.id === currentChapterId)?.title} has been updated.`,
-        });
-    }, 700);
+    }
   };
 
   const handleChapterRewrite = (rewrittenContent: string) => {
     setEditedContent(rewrittenContent);
-    // User can review and then manually save.
-    // Optionally, you could auto-save here by calling handleSaveChanges(),
-    // but for now, we'll let them review first.
     toast({
       title: "Editor Updated",
       description: "Chapter content in the editor has been updated. Review and save your changes.",
@@ -108,9 +142,8 @@ export default function BookEditorPage() {
     );
   }
 
-
   return (
-    <div className="flex flex-col h-full max-h-[calc(100vh-var(--header-height,4rem)-2*theme(spacing.8))]"> {/* Adjust for header and padding */}
+    <div className="flex flex-col h-full max-h-[calc(100vh-var(--header-height,4rem)-2*theme(spacing.8))]">
       <header className="flex items-center justify-between mb-6 pb-4 border-b">
         <div>
             <Button variant="ghost" size="sm" onClick={() => router.push('/')} className="mb-2 text-muted-foreground hover:text-foreground">
