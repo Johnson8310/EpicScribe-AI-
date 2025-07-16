@@ -48,3 +48,10 @@ EpicScribe AI is a web-based app designed to help users **generate, refine, and 
 
           A streamlined app for effortlessly creating and managing AI-generated books — from idea to polished export.
 
+---
+
+## Latest Updates
+
+- Ongoing work on making the application mobile-responsive for a better user experience across all devices.
+- Implemented functionality to save individual chapter content within the book editor.
+
