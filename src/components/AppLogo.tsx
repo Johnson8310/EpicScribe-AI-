@@ -7,7 +7,7 @@ export default function AppLogo() {
     <Link href="/" className="flex items-center gap-2 text-foreground hover:opacity-80 transition-opacity">
       <Image
         src="/logo.png"
-        alt="EpicScribe AI Logo"
+        alt={`${APP_NAME} Logo`}
         width={180}
         height={40}
         priority // Makes sure the logo loads quickly
