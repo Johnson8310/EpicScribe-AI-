@@ -33,7 +33,7 @@ export default function SignInPage() {
         // If user is already signed in, redirect to dashboard
         // This handles cases where user navigates to /signin while already logged in
         const redirectPath = searchParams.get('redirect') || '/';
-        router.push(redirectPath);
+        setTimeout(() => router.push(redirectPath), 1000); // Redirect after a short delay
       }
     });
     return () => unsubscribe(); // Cleanup subscription
@@ -45,6 +45,7 @@ export default function SignInPage() {
         title: 'Account Created',
         description: 'Your account has been successfully created. Please sign in.',
       });
+      // Use replace to remove the query param from the URL without adding to history
       router.replace('/signin', { scroll: false });
     }
   }, [searchParams, toast, router]);
@@ -52,13 +53,10 @@ export default function SignInPage() {
   useEffect(() => {
     if (state.success && state.message) {
       toast({
-        title: 'Signed In',
+        title: 'Signed In Successfully!',
         description: state.message,
       });
-      // Redirection is now primarily handled by onAuthStateChanged listener,
-      // but we can still push here as a fallback or for immediate navigation attempt.
-      const redirectPath = searchParams.get('redirect') || '/';
-      router.push(redirectPath);
+      // The onAuthStateChanged listener will handle the redirection.
     } else if (!state.success && state.message) {
       // Display general errors from action, field errors are handled below inputs
       if (state.errors?.general || (Object.keys(state.errors || {}).length === 0 && state.message !== initialState.message)) {
@@ -69,7 +67,7 @@ export default function SignInPage() {
         });
       }
     }
-  }, [state, toast, router, searchParams]);
+  }, [state, toast]);
 
   return (
     <Card className="w-full max-w-md shadow-xl">
