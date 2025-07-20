@@ -6,8 +6,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/firebase'; // Import Firebase auth instance
 import { 
   signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  FirebaseError
+  createUserWithEmailAndPassword
 } from 'firebase/auth';
 
 // Validation Schemas
@@ -49,8 +48,15 @@ export interface SignUpState {
   success: boolean;
 }
 
+// A helper function to check if an error is a Firebase error by checking for specific properties.
+// This is more reliable than `instanceof FirebaseError` in some server environments.
+function isFirebaseError(error: unknown): error is { code: string; message: string } {
+  return typeof error === 'object' && error !== null && 'code' in error && 'message' in error;
+}
+
+
 function handleFirebaseError(error: unknown): string {
-  if (error instanceof FirebaseError) {
+  if (isFirebaseError(error)) {
     switch (error.code) {
       case 'auth/invalid-email':
         return 'Invalid email address format.';
