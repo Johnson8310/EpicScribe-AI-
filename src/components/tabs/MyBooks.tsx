@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -9,27 +8,15 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { getBooksByUserId, deleteBook } from '@/lib/firestore';
-import { auth } from '@/lib/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
 import { Card } from '@/components/ui/card';
 
 export default function MyBooks() {
   const [books, setBooks] = useState<Book[]>([]);
-  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        fetchBooks(currentUser.uid);
-      } else {
-        setIsLoading(false);
-        setBooks([]); // Clear books if user logs out
-      }
-    });
-    return () => unsubscribe();
+    fetchBooks('local'); // Fetch books for the 'local' user
   }, []);
 
   const fetchBooks = async (userId: string) => {
@@ -85,15 +72,6 @@ export default function MyBooks() {
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        </div>
-      ) : !user ? (
-        <div className="text-center py-10 border-2 border-dashed border-border rounded-lg">
-          <h3 className="text-xl font-medium text-foreground">Please Sign In</h3>
-          <p className="text-muted-foreground">
-            <Link href="/signin" className="text-primary hover:underline">
-              Sign in
-            </Link> to see your saved books.
-          </p>
         </div>
       ) : books.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

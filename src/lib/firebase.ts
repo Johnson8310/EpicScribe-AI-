@@ -1,7 +1,5 @@
-
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, memoryLocalCache } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 // IMPORTANT: Replace these with your actual Firebase project configuration
@@ -23,7 +21,10 @@ if (!getApps().length) {
   app = getApp();
 }
 
-const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app);
+// Since auth is removed, we get a reference to firestore, but configure it for local caching
+// as we are not persisting user-specific data in the cloud anymore in a user-specific way.
+const db: Firestore = getFirestore(app, {
+  localCache: memoryLocalCache(),
+});
 
-export { app, auth, db };
+export { app, db };

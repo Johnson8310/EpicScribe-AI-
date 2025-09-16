@@ -1,4 +1,3 @@
-
 "use client";
 import { useState, useEffect, type ReactNode } from 'react';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarContent, SidebarTrigger, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
@@ -61,8 +60,8 @@ export default function AppShell({ children }: AppShellProps) {
           </div>
 
           {/* Right section for UserNav */}
-          <div className="flex items-center">
-            <UserNav />
+          <div className="flex items-center w-9 h-9">
+            {/* UserNav is removed, this div keeps spacing consistent */}
           </div>
         </header>
         
