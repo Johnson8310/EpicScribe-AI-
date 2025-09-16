@@ -1,4 +1,3 @@
-
 "use client";
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -12,8 +11,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Save, Edit3, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getBookById, updateChapterContent } from '@/lib/firestore';
-import { auth } from '@/lib/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
 
 export default function BookEditorPage() {
   const params = useParams();
@@ -22,38 +19,18 @@ export default function BookEditorPage() {
   const bookId = params.bookId as string;
 
   const [book, setBook] = useState<Book | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentChapterId, setCurrentChapterId] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        toast({ title: "Access Denied", description: "You must be signed in to edit a book.", variant: "destructive" });
-        router.push(`/signin?redirect=/book/${bookId}`);
-      } else {
-        setCurrentUser(user);
-      }
-    });
-    return () => unsubscribe();
-  }, [router, bookId, toast]);
-
-  useEffect(() => {
-    if (bookId && currentUser) {
+    if (bookId) {
       const fetchBook = async () => {
         setIsLoading(true);
         try {
           const fetchedBook = await getBookById(bookId);
           if (fetchedBook) {
-            // Security check: ensure the logged-in user owns this book
-            if (fetchedBook.userId !== currentUser.uid) {
-               toast({ title: "Access Denied", description: "You do not have permission to view this book.", variant: "destructive" });
-               router.push('/');
-               return;
-            }
-
             setBook(fetchedBook);
             if (fetchedBook.chapters && fetchedBook.chapters.length > 0) {
               const firstChapter = fetchedBook.chapters[0];
@@ -73,7 +50,7 @@ export default function BookEditorPage() {
       };
       fetchBook();
     }
-  }, [bookId, currentUser, router, toast]);
+  }, [bookId, router, toast]);
 
   const handleChapterSelect = (chapterId: string) => {
     setCurrentChapterId(chapterId);

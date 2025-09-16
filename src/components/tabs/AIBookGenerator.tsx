@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,8 +25,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, Wand2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { auth } from '@/lib/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
 
 const bookGenerationSchema = z.object({
   title: z.string().min(5, { message: "Book title must be at least 5 characters." }).max(100),
@@ -43,15 +40,6 @@ export default function AIBookGenerator() {
   const router = useRouter();
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
-
 
   const form = useForm<BookGenerationFormData>({
     resolver: zodResolver(bookGenerationSchema),
@@ -83,12 +71,6 @@ export default function AIBookGenerator() {
 
 
   async function onSubmit(data: BookGenerationFormData) {
-    if (!user) {
-        toast({ title: "Not Signed In", description: "You must be signed in to create a book.", variant: "destructive"});
-        router.push('/signin?redirect=/?tab=ai-generator');
-        return;
-    }
-
     setIsGenerating(true);
     try {
       const aiInput: GenerateBookChaptersInput = {
@@ -120,7 +102,7 @@ export default function AIBookGenerator() {
         numChapters: data.numChapters,
         chapters: chapters,
         status: 'completed' as const,
-        userId: user.uid,
+        userId: 'local', // Since there's no user, we can use a placeholder
         coverImageUrl: `https://placehold.co/300x450.png?text=${encodeURIComponent(data.title.substring(0,15))}`,
       };
       
@@ -235,14 +217,12 @@ export default function AIBookGenerator() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={isGenerating || !user}>
+            <Button type="submit" className="w-full" disabled={isGenerating}>
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Generating...
                 </>
-              ) : !user ? (
-                "Sign In to Create a Book"
               ) : (
                 <>
                   <Wand2 className="mr-2 h-4 w-4" />

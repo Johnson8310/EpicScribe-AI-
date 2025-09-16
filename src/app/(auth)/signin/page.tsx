@@ -27,36 +27,30 @@ export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // This listener handles cases where a user who is ALREADY logged in navigates to the signin page.
+  // This is now the primary mechanism for redirection after a successful sign-in.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // If user is already signed in, redirect to dashboard
-        // This handles cases where user navigates to /signin while already logged in
-        const redirectPath = searchParams.get('redirect') || '/';
-        setTimeout(() => router.push(redirectPath), 1000); // Redirect after a short delay
+        // If a user is detected, it means they are logged in.
+        // We'll give a moment for any potential success toasts to show, then redirect.
+        setTimeout(() => {
+          const redirectPath = searchParams.get('redirect') || '/';
+          router.push(redirectPath);
+        }, 500); // A small delay to allow toast to be seen
       }
     });
-    return () => unsubscribe(); // Cleanup subscription
+    return () => unsubscribe(); // Cleanup subscription on component unmount
   }, [router, searchParams]);
 
-  useEffect(() => {
-    if (searchParams.get('signup') === 'success') {
-      toast({
-        title: 'Account Created',
-        description: 'Your account has been successfully created. Please sign in.',
-      });
-      // Use replace to remove the query param from the URL without adding to history
-      router.replace('/signin', { scroll: false });
-    }
-  }, [searchParams, toast, router]);
-
+  // This effect handles the success/error toasts from the form action.
   useEffect(() => {
     if (state.success && state.message) {
       toast({
         title: 'Signed In Successfully!',
         description: state.message,
       });
-      // The onAuthStateChanged listener will handle the redirection.
+      // Redirection is now handled by the onAuthStateChanged listener above.
     } else if (!state.success && state.message) {
       // Display general errors from action, field errors are handled below inputs
       if (state.errors?.general || (Object.keys(state.errors || {}).length === 0 && state.message !== initialState.message)) {
@@ -68,6 +62,18 @@ export default function SignInPage() {
       }
     }
   }, [state, toast]);
+  
+  // This effect handles the "signup=success" query param to show a toast after registration.
+  useEffect(() => {
+    if (searchParams.get('signup') === 'success') {
+      toast({
+        title: 'Account Created',
+        description: 'Your account has been successfully created. Please sign in.',
+      });
+      // Use replace to remove the query param from the URL without adding to history
+      router.replace('/signin', { scroll: false });
+    }
+  }, [searchParams, toast, router]);
 
   return (
     <Card className="w-full max-w-md shadow-xl">

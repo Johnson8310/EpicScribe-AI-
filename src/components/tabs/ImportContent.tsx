@@ -1,15 +1,12 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import type { Book, Chapter } from "@/types";
+import { useState } from "react";
+import type { Chapter } from "@/types";
 import { addBook } from "@/lib/firestore";
-import { auth } from '@/lib/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
 
 import { Button } from "@/components/ui/button";
 import {
@@ -71,15 +68,6 @@ export default function ImportContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
-
 
   const form = useForm<ImportFormData>({
     resolver: zodResolver(importSchema),
@@ -91,12 +79,6 @@ export default function ImportContent() {
   });
 
   async function onSubmit(data: ImportFormData) {
-    if (!user) {
-        toast({ title: "Not Signed In", description: "You must be signed in to import a book.", variant: "destructive"});
-        router.push('/signin?redirect=/?tab=import-content');
-        return;
-    }
-
     setIsProcessing(true);
     try {
         const generatedChapters = splitContentIntoChapters(data.customContent);
@@ -119,7 +101,7 @@ export default function ImportContent() {
           numChapters: chapters.length,
           chapters: chapters,
           status: 'completed' as const,
-          userId: user.uid,
+          userId: 'local', // Placeholder as there is no user
           coverImageUrl: `https://placehold.co/300x450.png?text=${encodeURIComponent(data.title.substring(0,15))}`,
         };
         
@@ -201,14 +183,12 @@ export default function ImportContent() {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={isProcessing || !user}>
+            <Button type="submit" className="w-full" disabled={isProcessing}>
               {isProcessing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Processing...
                 </>
-              ) : !user ? (
-                "Sign In to Import Content"
               ) : (
                 <>
                   <Import className="mr-2 h-4 w-4" />
