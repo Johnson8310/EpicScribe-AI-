@@ -27,16 +27,19 @@ export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // This listener handles cases where a user who is ALREADY logged in navigates to the signin page.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // If user is already signed in, redirect to dashboard
-        // This handles cases where user navigates to /signin while already logged in
-        const redirectPath = searchParams.get('redirect') || '/';
-        setTimeout(() => router.push(redirectPath), 1000); // Redirect after a short delay
+        // If a user is detected, it means they are logged in.
+        // We'll give a moment for any potential success toasts to show, then redirect.
+        setTimeout(() => {
+          const redirectPath = searchParams.get('redirect') || '/';
+          router.push(redirectPath);
+        }, 500);
       }
     });
-    return () => unsubscribe(); // Cleanup subscription
+    return () => unsubscribe(); // Cleanup subscription on component unmount
   }, [router, searchParams]);
 
   useEffect(() => {
@@ -56,7 +59,7 @@ export default function SignInPage() {
         title: 'Signed In Successfully!',
         description: state.message,
       });
-      // The onAuthStateChanged listener will handle the redirection.
+      // The onAuthStateChanged listener above will now handle the redirection.
     } else if (!state.success && state.message) {
       // Display general errors from action, field errors are handled below inputs
       if (state.errors?.general || (Object.keys(state.errors || {}).length === 0 && state.message !== initialState.message)) {
