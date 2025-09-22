@@ -1,15 +1,11 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Books Collection
-    // - Allow users to read, create, update, and delete their own books.
-    // - A user's UID must match the book's userId field.
-    match /books/{bookId} {
-      allow read, delete: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+    // Allow public read and write access to all documents.
+    // This is suitable for an app without user-specific data protection.
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
